@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 yew = "0.17.2"
-yew-state = "0.2.1"
+yew-state = "0.2.3"
 web-sys = "^0.3"
