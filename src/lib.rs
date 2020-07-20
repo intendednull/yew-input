@@ -2,20 +2,20 @@ use std::rc::Rc;
 
 use web_sys::FocusEvent;
 use yew::{html, Callback, Component, ComponentLink, Html, InputData, Properties, ShouldRender};
-use yew_state::{GlobalHandle, SharedState, SharedStateComponent};
+use yew_state::{SharedState, SharedStateComponent, Storable, StorageHandle};
 
 type ViewForm<T> = Rc<dyn Fn(FormHandle<T>) -> Html>;
 
 pub struct FormHandle<'a, T>
 where
-    T: Default + Clone + 'static,
+    T: Storable + Default + Clone + 'static,
 {
-    handle: &'a GlobalHandle<T>,
+    handle: &'a StorageHandle<T>,
 }
 
 impl<'a, T> FormHandle<'a, T>
 where
-    T: Default + Clone + 'static,
+    T: Storable + Default + Clone + 'static,
 {
     /// Current form state.
     pub fn state(&self) -> &T {
@@ -46,10 +46,10 @@ where
 #[derive(Properties, Clone)]
 pub struct Props<T>
 where
-    T: Default + Clone + 'static,
+    T: Storable + Default + Clone + 'static,
 {
     #[prop_or_default]
-    handle: GlobalHandle<T>,
+    handle: StorageHandle<T>,
     #[prop_or_default]
     pub on_submit: Callback<T>,
     pub view: ViewForm<T>,
@@ -59,9 +59,9 @@ where
 
 impl<T> SharedState for Props<T>
 where
-    T: Default + Clone + 'static,
+    T: Storable + Default + Clone + 'static,
 {
-    type Handle = GlobalHandle<T>;
+    type Handle = StorageHandle<T>;
 
     fn handle(&mut self) -> &mut Self::Handle {
         &mut self.handle
@@ -74,7 +74,7 @@ pub enum Msg {
 
 pub struct Model<T>
 where
-    T: Default + Clone + 'static,
+    T: Storable + Default + Clone + 'static,
 {
     props: Props<T>,
     cb_submit: Callback<FocusEvent>,
@@ -82,7 +82,7 @@ where
 
 impl<T> Component for Model<T>
 where
-    T: Default + Clone + 'static,
+    T: Storable + Default + Clone + 'static,
 {
     type Message = Msg;
     type Properties = Props<T>;
@@ -123,6 +123,8 @@ where
 
 pub type Form<T> = SharedStateComponent<Model<T>>;
 
-pub fn view_form<T: Default + Clone>(f: impl Fn(FormHandle<T>) -> Html + 'static) -> ViewForm<T> {
+pub fn view_form<T: Storable + Default + Clone>(
+    f: impl Fn(FormHandle<T>) -> Html + 'static,
+) -> ViewForm<T> {
     Rc::new(f)
 }
