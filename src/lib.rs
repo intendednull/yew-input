@@ -1,31 +1,39 @@
+use std::rc::Rc;
+
 use web_sys::FocusEvent;
 use yew::{html, Callback, Component, ComponentLink, Html, InputData, Properties, ShouldRender};
 use yew_state::{GlobalHandle, SharedState, SharedStateComponent};
-use yewtil::NeqAssign;
 
-pub struct Setter<'a, T>
+type ViewForm<T> = Rc<dyn Fn(FormHandle<T>) -> Html>;
+
+pub struct FormHandle<'a, T>
 where
     T: Default + Clone + 'static,
 {
     handle: &'a GlobalHandle<T>,
 }
 
-impl<'a, T> Setter<'a, T>
+impl<'a, T> FormHandle<'a, T>
 where
     T: Default + Clone + 'static,
 {
+    /// Current form state.
+    pub fn state(&self) -> &T {
+        self.handle.state()
+    }
+
     /// Callback that sets state, ignoring callback event.
     pub fn set<E: 'static>(&self, f: impl FnOnce(&mut T) + Copy + 'static) -> Callback<E> {
         self.handle.reduce_callback(f)
     }
 
     /// Callback that sets state from callback event
-    pub fn from<E: 'static>(&self, f: impl FnOnce(&mut T, E) + Copy + 'static) -> Callback<E> {
+    pub fn set_with<E: 'static>(&self, f: impl FnOnce(&mut T, E) + Copy + 'static) -> Callback<E> {
         self.handle.reduce_callback_with(f)
     }
 
-    /// Callback for settings state from an `InputData` event.
-    pub fn from_input(
+    /// Callback for settings state from `InputData`.
+    pub fn set_input(
         &self,
         f: impl FnOnce(&mut T, String) + Copy + 'static,
     ) -> Callback<InputData> {
@@ -35,26 +43,23 @@ where
     }
 }
 
-pub trait FormModel: Default + Clone {
-    fn view(setter: Setter<Self>) -> Html;
-}
-
-#[derive(Properties, Clone, PartialEq)]
+#[derive(Properties, Clone)]
 pub struct Props<T>
 where
-    T: FormModel + PartialEq + 'static,
+    T: Default + Clone + 'static,
 {
     #[prop_or_default]
-    pub on_submit: Callback<T>,
-    // #[prop_or_default]
-    // pub errors: InputErrors,
-    #[prop_or_default]
     handle: GlobalHandle<T>,
+    #[prop_or_default]
+    pub on_submit: Callback<T>,
+    pub view: ViewForm<T>,
+    // #[prop_or_default]
+    // pub errors: InputErrors
 }
 
 impl<T> SharedState for Props<T>
 where
-    T: FormModel + PartialEq + 'static,
+    T: Default + Clone + 'static,
 {
     type Handle = GlobalHandle<T>;
 
@@ -69,7 +74,7 @@ pub enum Msg {
 
 pub struct Model<T>
 where
-    T: FormModel + PartialEq + 'static,
+    T: Default + Clone + 'static,
 {
     props: Props<T>,
     cb_submit: Callback<FocusEvent>,
@@ -77,7 +82,7 @@ where
 
 impl<T> Component for Model<T>
 where
-    T: FormModel + PartialEq + 'static,
+    T: Default + Clone + 'static,
 {
     type Message = Msg;
     type Properties = Props<T>;
@@ -87,7 +92,6 @@ where
             e.prevent_default();
             Msg::Submit
         });
-        // let setter = Rc::new(|)
         Self { props, cb_submit }
     }
 
@@ -101,19 +105,24 @@ where
     }
 
     fn view(&self) -> Html {
-        let setter = Setter {
+        let handle = FormHandle {
             handle: &self.props.handle,
         };
         html! {
             <form onsubmit = self.cb_submit.clone()>
-                { <T as FormModel>::view(setter) }
+                { (self.props.view)(handle) }
             </form>
         }
     }
 
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.props.neq_assign(props)
+        self.props = props;
+        true
     }
 }
 
 pub type Form<T> = SharedStateComponent<Model<T>>;
+
+pub fn view_form<T: Default + Clone>(f: impl Fn(FormHandle<T>) -> Html + 'static) -> ViewForm<T> {
+    Rc::new(f)
+}

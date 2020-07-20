@@ -9,5 +9,4 @@ edition = "2018"
 [dependencies]
 yew = "0.17.2"
 yew-state = "0.2.1"
-web-sys = "0.3.42"
-yewtil = "0.3.0"
+web-sys = "^0.3"
