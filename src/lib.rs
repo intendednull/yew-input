@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use web_sys::{Event, FocusEvent};
+use web_sys::FocusEvent;
 use yew::{html, Callback, Component, ComponentLink, Html, InputData, Properties, ShouldRender};
 use yew_state::{SharedState, SharedStateComponent, Storable, StorageHandle};
 
@@ -69,7 +69,7 @@ where
 }
 
 pub enum Msg {
-    Submit(FocusEvent),
+    Submit,
 }
 
 pub struct Model<T>
@@ -90,18 +90,15 @@ where
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let cb_submit = link.callback(|e: FocusEvent| {
             e.prevent_default();
-            Msg::Submit(e)
+            Msg::Submit
         });
         Self { props, cb_submit }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
-        let reset_event = Event::new("reset").expect("Error creating form reset event");
         match msg {
-            Msg::Submit(e) => {
+            Msg::Submit => {
                 self.props.on_submit.emit(self.props.handle.state().clone());
-                e.target()
-                    .map(|target| target.dispatch_event(&reset_event).ok());
                 false
             }
         }
