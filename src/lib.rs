@@ -121,13 +121,8 @@ where
     }
 }
 
-impl<T> Model<T>
-where
-    T: Default + Clone + 'static,
-{
-    pub fn render(f: impl Fn(FormHandle<T>) -> Html + 'static) -> ViewForm<T> {
-        Rc::new(f)
-    }
-}
-
 pub type Form<T> = SharedStateComponent<Model<T>>;
+
+pub fn view_form<T: Default + Clone>(f: impl Fn(FormHandle<T>) -> Html + 'static) -> ViewForm<T> {
+    Rc::new(f)
+}
