@@ -1,7 +1,11 @@
 use std::rc::Rc;
 
 use web_sys::FocusEvent;
-use yew::{html, Callback, Component, ComponentLink, Html, InputData, Properties, ShouldRender};
+use yew::services::reader::{File, FileChunk, FileData, ReaderService, ReaderTask};
+use yew::services::Task;
+use yew::{
+    html, Callback, ChangeData, Component, ComponentLink, Html, InputData, Properties, ShouldRender,
+};
 use yew_state::{GlobalHandle, SharedState, SharedStateComponent};
 
 type ViewForm<T> = Rc<dyn Fn(FormHandle<T>) -> Html>;
@@ -11,6 +15,7 @@ where
     T: Default + Clone + 'static,
 {
     handle: &'a GlobalHandle<T>,
+    link: &'a ComponentLink<Model<T>>,
 }
 
 impl<'a, T> FormHandle<'a, T>
@@ -41,6 +46,26 @@ where
             .reduce_callback_with(f)
             .reform(|data: InputData| data.value)
     }
+
+    /// Callback for setting files
+    pub fn set_file(
+        &self,
+        f: impl FnOnce(&mut T, FileData) + Copy + 'static,
+    ) -> Callback<ChangeData> {
+        let set_files = self.set_with(f);
+        self.link.callback(move |data| {
+            let mut result = Vec::new();
+            if let ChangeData::Files(files) = data {
+                let files = js_sys::try_iter(&files)
+                    .unwrap()
+                    .unwrap()
+                    .into_iter()
+                    .map(|v| File::from(v.unwrap()));
+                result.extend(files);
+            }
+            Msg::Files(result, set_files.clone())
+        })
+    }
 }
 
 #[derive(Properties, Clone)]
@@ -70,6 +95,7 @@ where
 
 pub enum Msg {
     Submit,
+    Files(Vec<File>, Callback<FileData>),
 }
 
 pub struct Model<T>
@@ -78,6 +104,9 @@ where
 {
     props: Props<T>,
     cb_submit: Callback<FocusEvent>,
+    link: ComponentLink<Self>,
+    file_reader: ReaderService,
+    tasks: Vec<ReaderTask>,
 }
 
 impl<T> Component for Model<T>
@@ -92,7 +121,13 @@ where
             e.prevent_default();
             Msg::Submit
         });
-        Self { props, cb_submit }
+        Self {
+            props,
+            cb_submit,
+            link,
+            tasks: Default::default(),
+            file_reader: Default::default(),
+        }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
@@ -101,12 +136,25 @@ where
                 self.props.on_submit.emit(self.props.handle.state().clone());
                 false
             }
+            Msg::Files(files, cb) => {
+                self.tasks.retain(Task::is_active);
+                for file in files.into_iter() {
+                    let task = self
+                        .file_reader
+                        .read_file(file, cb.clone())
+                        .expect("Error reading file");
+
+                    self.tasks.push(task);
+                }
+                false
+            }
         }
     }
 
     fn view(&self) -> Html {
         let handle = FormHandle {
             handle: &self.props.handle,
+            link: &self.link,
         };
         html! {
             <form onsubmit = self.cb_submit.clone()>
