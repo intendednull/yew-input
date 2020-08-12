@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use web_sys::FocusEvent;
-use yew::services::reader::{File, FileChunk, FileData, ReaderService, ReaderTask};
+use web_sys::{Event, FocusEvent};
+use yew::services::reader::{File, FileData, ReaderService, ReaderTask};
 use yew::services::Task;
 use yew::{
     html, Callback, ChangeData, Component, ComponentLink, Html, InputData, Properties, ShouldRender,
@@ -77,6 +77,8 @@ where
     handle: GlobalHandle<T>,
     #[prop_or_default]
     pub on_submit: Callback<T>,
+    #[prop_or_default]
+    pub auto_reset: bool,
     pub view: ViewForm<T>,
     // #[prop_or_default]
     // pub errors: InputErrors
@@ -94,8 +96,8 @@ where
 }
 
 pub enum Msg {
-    Submit,
     Files(Vec<File>, Callback<FileData>),
+    Submit(FocusEvent),
 }
 
 pub struct Model<T>
@@ -119,7 +121,7 @@ where
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let cb_submit = link.callback(|e: FocusEvent| {
             e.prevent_default();
-            Msg::Submit
+            Msg::Submit(e)
         });
         Self {
             props,
@@ -132,8 +134,13 @@ where
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::Submit => {
+            Msg::Submit(e) => {
                 self.props.on_submit.emit(self.props.handle.state().clone());
+                if self.props.auto_reset {
+                    let reset_event = Event::new("reset").unwrap();
+                    e.target()
+                        .map(|target| target.dispatch_event(&reset_event).ok());
+                }
                 false
             }
             Msg::Files(files, cb) => {
