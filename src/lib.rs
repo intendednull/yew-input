@@ -137,9 +137,14 @@ where
             Msg::Submit(e) => {
                 self.props.on_submit.emit(self.props.handle.state().clone());
                 if self.props.auto_reset {
+                    // Clear form
                     let reset_event = Event::new("reset").unwrap();
                     e.target()
                         .map(|target| target.dispatch_event(&reset_event).ok());
+                    // Reset state
+                    self.props
+                        .handle()
+                        .reduce(|state| *state = Default::default());
                 }
                 false
             }
