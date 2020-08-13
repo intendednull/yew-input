@@ -106,6 +106,7 @@ where
 {
     props: Props<T>,
     cb_submit: Callback<FocusEvent>,
+    cb_reset: Callback<()>,
     link: ComponentLink<Self>,
     file_reader: ReaderService,
     tasks: Vec<ReaderTask>,
@@ -118,14 +119,18 @@ where
     type Message = Msg;
     type Properties = Props<T>;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(mut props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let cb_submit = link.callback(|e: FocusEvent| {
             e.prevent_default();
             Msg::Submit(e)
         });
+        let cb_reset = props
+            .handle()
+            .reduce_callback(|state| *state = Default::default());
         Self {
             props,
             cb_submit,
+            cb_reset,
             link,
             tasks: Default::default(),
             file_reader: Default::default(),
@@ -142,9 +147,7 @@ where
                     e.target()
                         .map(|target| target.dispatch_event(&reset_event).ok());
                     // Reset state
-                    self.props
-                        .handle()
-                        .reduce(|state| *state = Default::default());
+                    self.cb_reset.emit(());
                 }
                 false
             }
@@ -169,7 +172,7 @@ where
             link: &self.link,
         };
         html! {
-            <form onsubmit = self.cb_submit.clone()>
+            <form onreset = self.cb_reset.reform(|_| ()) onsubmit = self.cb_submit.clone()>
                 { (self.props.view)(handle) }
             </form>
         }
