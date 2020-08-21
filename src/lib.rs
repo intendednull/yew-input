@@ -28,22 +28,19 @@ where
     }
 
     /// Callback that sets state, ignoring callback event.
-    pub fn set<E: 'static>(&self, f: impl FnOnce(&mut T) + Copy + 'static) -> Callback<E> {
-        self.handle.reduce_callback(f)
+    pub fn set<E: 'static>(&self, f: impl FnOnce(&mut T) + 'static) -> Callback<E> {
+        self.handle.reduce_callback_once(f)
     }
 
     /// Callback that sets state from callback event
-    pub fn set_with<E: 'static>(&self, f: impl FnOnce(&mut T, E) + Copy + 'static) -> Callback<E> {
-        self.handle.reduce_callback_with(f)
+    pub fn set_with<E: 'static>(&self, f: impl FnOnce(&mut T, E) + 'static) -> Callback<E> {
+        self.handle.reduce_callback_once_with(f)
     }
 
     /// Callback for settings state from `InputData`.
-    pub fn set_input(
-        &self,
-        f: impl FnOnce(&mut T, String) + Copy + 'static,
-    ) -> Callback<InputData> {
+    pub fn set_text(&self, f: impl FnOnce(&mut T, String) + 'static) -> Callback<InputData> {
         self.handle
-            .reduce_callback_with(f)
+            .reduce_callback_once_with(f)
             .reform(|data: InputData| data.value)
     }
 
@@ -77,6 +74,8 @@ where
     handle: GlobalHandle<T>,
     #[prop_or_default]
     pub on_submit: Callback<T>,
+    #[prop_or_default]
+    pub default: T,
     #[prop_or_default]
     pub auto_reset: bool,
     pub view: ViewForm<T>,
@@ -124,9 +123,13 @@ where
             e.prevent_default();
             Msg::Submit(e)
         });
+        let default = props.default.clone();
         let cb_reset = props
             .handle()
-            .reduce_callback(|state| *state = Default::default());
+            .reduce_callback(move |state| *state = default.clone());
+        // Make sure default is set.
+        cb_reset.emit(());
+
         Self {
             props,
             cb_submit,
