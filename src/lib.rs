@@ -37,11 +37,28 @@ where
         self.handle.reduce_callback_once_with(f)
     }
 
-    /// Callback for settings state from `InputData`.
+    /// Callback for setting state from `InputData`.
     pub fn set_text(&self, f: impl FnOnce(&mut T, String) + 'static) -> Callback<InputData> {
         self.handle
             .reduce_callback_once_with(f)
             .reform(|data: InputData| data.value)
+    }
+
+    /// Callback for setting state from select elements.
+    ///
+    /// # Panics
+    ///
+    /// Panics if used on anything other than a select element.
+    pub fn set_select(&self, f: impl FnOnce(&mut T, String) + 'static) -> Callback<ChangeData> {
+        self.handle
+            .reduce_callback_once_with(f)
+            .reform(|data: ChangeData| {
+                if let ChangeData::Select(el) = data {
+                    el.value()
+                } else {
+                    panic!("Select element is required")
+                }
+            })
     }
 
     /// Callback for setting files
