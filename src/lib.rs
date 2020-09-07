@@ -1,10 +1,11 @@
 use std::rc::Rc;
 
-use web_sys::{Event, FocusEvent};
+use web_sys::{Event, FocusEvent, HtmlElement};
 use yew::services::reader::{File, FileData, ReaderService, ReaderTask};
 use yew::services::Task;
 use yew::{
-    html, Callback, ChangeData, Component, ComponentLink, Html, InputData, Properties, ShouldRender,
+    html, Callback, ChangeData, Component, ComponentLink, Html, InputData, NodeRef, Properties,
+    ShouldRender,
 };
 use yew_state::{GlobalHandle, SharedState, SharedStateComponent};
 
@@ -16,6 +17,7 @@ where
 {
     handle: &'a GlobalHandle<T>,
     link: &'a ComponentLink<Model<T>>,
+    ref_form: &'a NodeRef,
 }
 
 impl<'a, T> FormHandle<'a, T>
@@ -25,6 +27,18 @@ where
     /// Current form state.
     pub fn state(&self) -> &T {
         self.handle.state()
+    }
+
+    /// Callback for submitting the form.
+    pub fn submit<E: 'static>(&self) -> Callback<E> {
+        let node = self.ref_form.clone();
+        let submit = move |_| {
+            if let Some(el) = node.cast::<HtmlElement>() {
+                let event = FocusEvent::new("submit").unwrap();
+                el.dispatch_event(&event).unwrap();
+            }
+        };
+        submit.into()
     }
 
     /// Callback that sets state, ignoring callback event.
@@ -126,6 +140,7 @@ where
     link: ComponentLink<Self>,
     file_reader: ReaderService,
     tasks: Vec<ReaderTask>,
+    ref_form: NodeRef,
 }
 
 impl<T> Component for Model<T>
@@ -154,6 +169,7 @@ where
             link,
             tasks: Default::default(),
             file_reader: Default::default(),
+            ref_form: Default::default(),
         }
     }
 
@@ -190,9 +206,10 @@ where
         let handle = FormHandle {
             handle: &self.props.handle,
             link: &self.link,
+            ref_form: &self.ref_form,
         };
         html! {
-            <form onreset = self.cb_reset.reform(|_| ()) onsubmit = self.cb_submit.clone()>
+            <form ref=self.ref_form.clone() onreset = self.cb_reset.reform(|_| ()) onsubmit = self.cb_submit.clone()>
                 { (self.props.view)(handle) }
             </form>
         }
@@ -204,7 +221,8 @@ where
     }
 }
 
-pub type Form<T> = SharedStateComponent<Model<T>>;
+pub struct FormScope;
+pub type Form<T> = SharedStateComponent<Model<T>, FormScope>;
 
 pub fn view_form<T: Default + Clone>(f: impl Fn(FormHandle<T>) -> Html + 'static) -> ViewForm<T> {
     Rc::new(f)
