@@ -7,7 +7,7 @@ use yew::{
     html, Callback, ChangeData, Component, ComponentLink, Html, InputData, NodeRef, Properties,
     ShouldRender,
 };
-use yew_state::{GlobalHandle, SharedState, SharedStateComponent};
+use yew_state::{SharedHandle, SharedState, SharedStateComponent};
 
 type ViewForm<T> = Rc<dyn Fn(FormHandle<T>) -> Html>;
 
@@ -15,7 +15,7 @@ pub struct FormHandle<'a, T>
 where
     T: Default + Clone + 'static,
 {
-    handle: &'a GlobalHandle<T>,
+    handle: &'a SharedHandle<T>,
     link: &'a ComponentLink<Model<T>>,
     ref_form: &'a NodeRef,
 }
@@ -102,7 +102,7 @@ where
     T: Default + Clone + 'static,
 {
     #[prop_or_default]
-    handle: GlobalHandle<T>,
+    handle: SharedHandle<T>,
     #[prop_or_default]
     pub on_submit: Callback<T>,
     #[prop_or_default]
@@ -118,7 +118,7 @@ impl<T> SharedState for Props<T>
 where
     T: Default + Clone + 'static,
 {
-    type Handle = GlobalHandle<T>;
+    type Handle = SharedHandle<T>;
 
     fn handle(&mut self) -> &mut Self::Handle {
         &mut self.handle
