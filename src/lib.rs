@@ -106,12 +106,10 @@ where
     #[prop_or_default]
     pub on_submit: Callback<T>,
     #[prop_or_default]
-    pub default: T,
+    pub default: Option<T>,
     #[prop_or_default]
     pub auto_reset: bool,
     pub view: ViewForm<T>,
-    // #[prop_or_default]
-    // pub errors: InputErrors
 }
 
 impl<T> SharedState for Props<T>
@@ -155,12 +153,19 @@ where
             e.prevent_default();
             Msg::Submit(e)
         });
-        let default = props.default.clone();
+        let default = props
+            .default
+            .as_ref()
+            .map(|x| x.clone())
+            .unwrap_or_default();
         let cb_reset = props
             .handle()
             .reduce_callback(move |state| *state = default.clone());
-        // Make sure default is set.
-        cb_reset.emit(());
+
+        // Make sure default is set if provided.
+        if props.default.is_some() {
+            cb_reset.emit(());
+        }
 
         Self {
             props,
