@@ -221,7 +221,8 @@ where
     }
 }
 
-pub type Form<T> = SharedStateComponent<Model<T>>;
+pub struct FormScope;
+pub type Form<T, SCOPE = FormScope> = SharedStateComponent<Model<T>, SCOPE>;
 
 pub fn view_form<T: Default + Clone>(f: impl Fn(FormHandle<T>) -> Html + 'static) -> ViewForm<T> {
     Rc::new(f)
