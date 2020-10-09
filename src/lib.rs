@@ -13,7 +13,7 @@ type ViewForm<T> = Rc<dyn Fn(FormHandle<T>) -> Html>;
 
 pub struct FormHandle<'a, T>
 where
-    T: Default + Clone + 'static,
+    T: PartialEq + Default + Clone + 'static,
 {
     handle: &'a SharedHandle<T>,
     link: &'a ComponentLink<Model<T>>,
@@ -22,7 +22,7 @@ where
 
 impl<'a, T> FormHandle<'a, T>
 where
-    T: Default + Clone + 'static,
+    T: PartialEq + Default + Clone + 'static,
 {
     /// Current form state.
     pub fn state(&self) -> &T {
@@ -99,7 +99,7 @@ where
 #[derive(Properties, Clone)]
 pub struct Props<T>
 where
-    T: Default + Clone + 'static,
+    T: PartialEq + Default + Clone + 'static,
 {
     #[prop_or_default]
     handle: SharedHandle<T>,
@@ -114,7 +114,7 @@ where
 
 impl<T> SharedState for Props<T>
 where
-    T: Default + Clone + 'static,
+    T: PartialEq + Default + Clone + 'static,
 {
     type Handle = SharedHandle<T>;
 
@@ -130,7 +130,7 @@ pub enum Msg {
 
 pub struct Model<T>
 where
-    T: Default + Clone + 'static,
+    T: PartialEq + Default + Clone + 'static,
 {
     props: Props<T>,
     cb_submit: Callback<FocusEvent>,
@@ -143,39 +143,27 @@ where
 
 impl<T> Component for Model<T>
 where
-    T: Default + Clone + 'static,
+    T: PartialEq + Default + Clone + 'static,
 {
     type Message = Msg;
     type Properties = Props<T>;
 
-    fn create(mut props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let cb_submit = link.callback(|e: FocusEvent| {
             e.prevent_default();
             Msg::Submit(e)
         });
-        let default = props
-            .default
-            .as_ref()
-            .map(|x| x.clone())
-            .unwrap_or_default();
-        let cb_reset = props
-            .handle()
-            .reduce_callback(move |state| *state = default.clone());
-
-        // Make sure default is set if provided.
-        if props.default.is_some() {
-            cb_reset.emit(());
-        }
-
-        Self {
+        let mut this = Self {
             props,
             cb_submit,
-            cb_reset,
             link,
+            cb_reset: Default::default(),
             tasks: Default::default(),
             file_reader: Default::default(),
             ref_form: Default::default(),
-        }
+        };
+        this.update_default();
+        this
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
@@ -214,21 +202,54 @@ where
             ref_form: &self.ref_form,
         };
         html! {
-            <form ref=self.ref_form.clone() onreset = self.cb_reset.reform(|_| ()) onsubmit = self.cb_submit.clone()>
+            <form
+                ref=self.ref_form.clone()
+                onreset = self.cb_reset.reform(|_| ())
+                onsubmit = self.cb_submit.clone()>
                 { (self.props.view)(handle) }
             </form>
         }
     }
 
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        let last = self.props.default.clone();
         self.props = props;
+        if self.props.default != last {
+            self.update_default();
+        }
         true
+    }
+}
+
+impl<T> Model<T>
+where
+    T: PartialEq + Default + Clone + 'static,
+{
+    fn update_default(&mut self) {
+        let default = self
+            .props
+            .default
+            .as_ref()
+            .map(Clone::clone)
+            .unwrap_or_default();
+
+        self.cb_reset = self
+            .props
+            .handle()
+            .reduce_callback(move |state| *state = default.clone());
+
+        // Make sure default is set if provided.
+        if self.props.default.is_some() {
+            self.cb_reset.emit(());
+        }
     }
 }
 
 pub struct FormScope;
 pub type Form<T, SCOPE = FormScope> = SharedStateComponent<Model<T>, SCOPE>;
 
-pub fn view_form<T: Default + Clone>(f: impl Fn(FormHandle<T>) -> Html + 'static) -> ViewForm<T> {
+pub fn view_form<T: PartialEq + Default + Clone>(
+    f: impl Fn(FormHandle<T>) -> Html + 'static,
+) -> ViewForm<T> {
     Rc::new(f)
 }
