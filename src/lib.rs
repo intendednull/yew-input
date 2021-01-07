@@ -7,7 +7,7 @@ use yew::{
     html, Callback, ChangeData, Component, ComponentLink, Html, InputData, NodeRef, Properties,
     ShouldRender,
 };
-use yew_state::{SharedHandle, SharedState, SharedStateComponent};
+use yew_state::{SharedHandle, SharedState, SharedStateComponent, StateHandle};
 
 type ViewForm<T> = Rc<dyn Fn(FormHandle<T>) -> Html>;
 
