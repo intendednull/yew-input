@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use web_sys::{Event, FocusEvent, HtmlElement};
-use yew::services::reader::{File, FileData, ReaderService, ReaderTask};
-use yew::services::Task;
 use yew::{
     html, Callback, ChangeData, Component, ComponentLink, Html, InputData, NodeRef, Properties,
     ShouldRender,
 };
+use yew_services::reader::{File, FileData, ReaderService, ReaderTask};
+use yew_services::Task;
 use yew_state::{SharedHandle, SharedState, SharedStateComponent, StateHandle};
 
 type ViewForm<T> = Rc<dyn Fn(FormHandle<T>) -> Html>;
@@ -136,7 +136,6 @@ where
     cb_submit: Callback<FocusEvent>,
     cb_reset: Callback<()>,
     link: ComponentLink<Self>,
-    file_reader: ReaderService,
     tasks: Vec<ReaderTask>,
     ref_form: NodeRef,
 }
@@ -159,7 +158,6 @@ where
             link,
             cb_reset: Default::default(),
             tasks: Default::default(),
-            file_reader: Default::default(),
             ref_form: Default::default(),
         };
         this.update_default();
@@ -183,10 +181,8 @@ where
             Msg::Files(files, cb) => {
                 self.tasks.retain(Task::is_active);
                 for file in files.into_iter() {
-                    let task = self
-                        .file_reader
-                        .read_file(file, cb.clone())
-                        .expect("Error reading file");
+                    let task =
+                        ReaderService::read_file(file, cb.clone()).expect("Error reading file");
 
                     self.tasks.push(task);
                 }
